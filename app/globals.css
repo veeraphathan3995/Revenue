@@ -1,0 +1,426 @@
+:root {
+  --cmu-purple: #5b2c83;
+  --cmu-purple-dark: #431d63;
+  --cmu-purple-light: #f3edf9;
+  --cmu-gold: #d97706;
+  --excel-input-bg: #fef9c3;
+  --excel-input-border: #eab308;
+  --excel-calc-bg: #f8fafc;
+  --bg-page: #f1f5f9;
+  --bg-card: #ffffff;
+  --text-main: #0f172a;
+  --text-muted: #475569;
+  --border-color: #cbd5e1;
+  --success: #15803d;
+  --success-bg: #dcfce7;
+  --warning: #b45309;
+  --warning-bg: #fef3c7;
+  --danger: #b91c1c;
+  --danger-bg: #fee2e2;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  font-family: 'Sarabun', 'Prompt', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  background-color: var(--bg-page);
+  color: var(--text-main);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+/* Layout */
+.rev-shell {
+  display: flex;
+  min-height: 100vh;
+}
+
+.rev-sidebar {
+  width: 260px;
+  background: linear-gradient(180deg, #3b1c57 0%, #241038 100%);
+  color: #fff;
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+  box-shadow: 2px 0 12px rgba(0, 0, 0, 0.12);
+}
+
+.rev-brand {
+  padding: 16px 18px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.14);
+}
+
+.rev-brand-title {
+  font-size: 15px;
+  font-weight: 700;
+  color: #fde047;
+  margin-bottom: 3px;
+}
+
+.rev-brand-sub {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.rev-nav {
+  flex: 1;
+  overflow-y: auto;
+  padding: 10px 10px 24px;
+}
+
+.rev-nav-group {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: rgba(255, 255, 255, 0.55);
+  padding: 12px 10px 4px;
+  font-weight: 600;
+}
+
+.rev-nav-link {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-radius: 6px;
+  font-size: 13.5px;
+  color: rgba(255, 255, 255, 0.88);
+  margin-bottom: 2px;
+  transition: background 0.15s, color 0.15s;
+}
+
+.rev-nav-link:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+}
+
+.rev-nav-link.active {
+  background: #fde047;
+  color: #241038;
+  font-weight: 700;
+}
+
+.rev-main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.rev-topbar {
+  background: #ffffff;
+  border-bottom: 1px solid var(--border-color);
+  padding: 10px 20px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  position: sticky;
+  top: 0;
+  z-index: 20;
+}
+
+.rev-content {
+  padding: 20px 24px 40px;
+  max-width: 1600px;
+  width: 100%;
+}
+
+/* Cards & Grid */
+.card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  padding: 16px 18px;
+  margin-bottom: 16px;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04);
+}
+
+.card-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 14px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.card-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: #1e293b;
+  margin: 0;
+}
+
+.kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 14px;
+  margin-bottom: 18px;
+}
+
+.kpi-card {
+  background: #fff;
+  border: 1px solid var(--border-color);
+  border-left: 5px solid var(--cmu-purple);
+  border-radius: 10px;
+  padding: 14px 16px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+}
+
+.kpi-label {
+  font-size: 12.5px;
+  color: var(--text-muted);
+  font-weight: 600;
+}
+
+.kpi-value {
+  font-size: 22px;
+  font-weight: 800;
+  color: #0f172a;
+  margin-top: 4px;
+  font-variant-numeric: tabular-nums;
+}
+
+.kpi-sub {
+  font-size: 12px;
+  color: #64748b;
+  margin-top: 4px;
+}
+
+/* Tables & Excel Input Cells */
+.table-wrap {
+  width: 100%;
+  overflow-x: auto;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+}
+
+table.rev-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+  background: #fff;
+}
+
+table.rev-table th {
+  background: #f1f5f9;
+  color: #1e293b;
+  font-weight: 700;
+  text-align: left;
+  padding: 9px 10px;
+  border-bottom: 2px solid #cbd5e1;
+  border-right: 1px solid #e2e8f0;
+  white-space: nowrap;
+}
+
+table.rev-table td {
+  padding: 7px 10px;
+  border-bottom: 1px solid #e2e8f0;
+  border-right: 1px solid #f1f5f9;
+  font-variant-numeric: tabular-nums;
+}
+
+table.rev-table tr:hover td {
+  background-color: #f8fafc;
+}
+
+table.rev-table tr.total-row td {
+  background-color: #f1f5f9;
+  font-weight: 700;
+  border-top: 2px solid #94a3b8;
+}
+
+.num {
+  text-align: right !important;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Yellow Excel input styling per specification 0.8 */
+.excel-input {
+  background-color: var(--excel-input-bg) !important;
+  border: 1px solid var(--excel-input-border);
+  border-radius: 4px;
+  padding: 4px 8px;
+  color: #1d4ed8;
+  font-weight: 600;
+  font-size: 13px;
+  width: 100%;
+  font-variant-numeric: tabular-nums;
+}
+
+.excel-input:focus {
+  outline: 2px solid #2563eb;
+  background-color: #fef08a !important;
+}
+
+.excel-input:disabled {
+  background-color: #f1f5f9 !important;
+  border-color: #cbd5e1;
+  color: #64748b;
+  cursor: not-allowed;
+}
+
+.calc-cell {
+  background-color: var(--excel-calc-bg);
+  color: #334155;
+}
+
+.drill-link {
+  color: #4f46e5;
+  font-weight: 700;
+  cursor: pointer;
+  border-bottom: 1px dashed #6366f1;
+}
+
+.drill-link:hover {
+  color: #312e81;
+}
+
+/* Badges & Buttons */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 9px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.badge-ok {
+  background: var(--success-bg);
+  color: var(--success);
+}
+
+.badge-warn {
+  background: var(--warning-bg);
+  color: var(--warning);
+}
+
+.badge-err {
+  background: var(--danger-bg);
+  color: var(--danger);
+}
+
+.badge-info {
+  background: #e0e7ff;
+  color: #3730a3;
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 13px;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.btn-primary {
+  background: var(--cmu-purple);
+  color: #fff;
+}
+
+.btn-primary:hover:not(:disabled) {
+  background: var(--cmu-purple-dark);
+}
+
+.btn-secondary {
+  background: #fff;
+  border-color: #cbd5e1;
+  color: #1e293b;
+}
+
+.btn-secondary:hover:not(:disabled) {
+  background: #f8fafc;
+}
+
+.btn-success {
+  background: #15803d;
+  color: #fff;
+}
+
+.btn-danger {
+  background: #fee2e2;
+  color: #b91c1c;
+  border-color: #fecaca;
+}
+
+.select-ctrl,
+.input-ctrl {
+  padding: 6px 10px;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  font-size: 13px;
+  background: #fff;
+}
+
+/* Modal for Drill-down */
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+  padding: 20px;
+}
+
+.modal-box {
+  background: #fff;
+  border-radius: 12px;
+  max-width: 960px;
+  width: 100%;
+  max-height: 85vh;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.25);
+}
+
+.modal-header {
+  padding: 14px 18px;
+  border-bottom: 1px solid #e2e8f0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.modal-body {
+  padding: 16px 18px;
+  overflow-y: auto;
+}
+
+@media print {
+  .rev-sidebar,
+  .rev-topbar,
+  .no-print {
+    display: none !important;
+  }
+  .rev-content {
+    padding: 0;
+  }
+}
