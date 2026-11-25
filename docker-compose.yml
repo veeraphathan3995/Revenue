@@ -1,0 +1,83 @@
+version: '3.9'
+
+services:
+  # 1. App Service (Laravel 13 / PHP 8.3-FPM)
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: cmu_revenue_app
+    restart: unless-stopped
+    working_dir: /var/www/html
+    volumes:
+      - ./:/var/www/html
+      - ./docker/php/local.ini:/usr/local/etc/php/conf.d/local.ini
+      - private_storage:/var/www/html/storage/app/private
+    environment:
+      APP_NAME: "CMU PolSci Revenue Estimation"
+      APP_ENV: local
+      APP_DEBUG: "true"
+      APP_URL: http://localhost:8080
+      DB_CONNECTION: mysql
+      DB_HOST: db
+      DB_PORT: 3306
+      DB_DATABASE: revenue_estimate_db
+      DB_USERNAME: revenue_user
+      DB_PASSWORD: revenue_secret_2571
+      FILESYSTEM_DISK: private
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - revenue_net
+
+  # 2. Web Server Service (Nginx)
+  webserver:
+    image: nginx:1.27-alpine
+    container_name: cmu_revenue_nginx
+    restart: unless-stopped
+    ports:
+      - "8080:80"
+    volumes:
+      - ./:/var/www/html
+      - ./docker/nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      - app
+    networks:
+      - revenue_net
+
+  # 3. Database Service (MySQL 8.0 with UTF8MB4 Thai Collations)
+  db:
+    image: mysql:8.0
+    container_name: cmu_revenue_mysql
+    restart: unless-stopped
+    command: >
+      --character-set-server=utf8mb4
+      --collation-server=utf8mb4_unicode_ci
+      --default-authentication-plugin=mysql_native_password
+    environment:
+      MYSQL_DATABASE: revenue_estimate_db
+      MYSQL_USER: revenue_user
+      MYSQL_PASSWORD: revenue_secret_2571
+      MYSQL_ROOT_PASSWORD: root_secret_2571
+      TZ: Asia/Bangkok
+    ports:
+      - "33060:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./docker/mysql/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-urevenue_user", "-prevenue_secret_2571"]
+      interval: 5s
+      timeout: 5s
+      retries: 15
+    networks:
+      - revenue_net
+
+volumes:
+  mysql_data:
+  private_storage:
+
+networks:
+  revenue_net:
+    driver: bridge
