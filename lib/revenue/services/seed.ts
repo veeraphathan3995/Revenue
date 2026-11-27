@@ -739,6 +739,8 @@ export async function clearAllRevenueData(db: PGlite): Promise<void> {
       public.carryover,
       public.allocation_pcts,
       public.historical_usage,
+      public.allocation_items,
+      public.allocation_dimensions,
       public.version_snapshots,
       public.audit_logs,
       public.parameters,
@@ -1028,9 +1030,11 @@ export async function seedCleanBaseline(db: PGlite, beYear = 2571): Promise<Seed
       code: 'strategic',
       name_th: 'มิติหมวดงบเชิงยุทธศาสตร์',
       items: [
-        'ยุทธศาสตร์ที่ 1 นวัตกรรมการศึกษาเพื่อพัฒนาบุคลากร',
-        'ยุทธศาสตร์ที่ 2 งานวิจัยและนวัตกรรมเพื่อสังคม',
-        'ยุทธศาสตร์ที่ 3 การบริหารจัดการองค์กรสู่ความยั่งยืน',
+        'งบรายจ่ายประจำ (งบดำเนินงาน)',
+        'งบพัฒนาและปรับปรุง',
+        'งบขับเคลื่อนยุทธศาสตร์คณะ',
+        'งบรายจ่ายประจำ (อุดหนุนภารกิจประจำ)',
+        'งบกำกับดูแลและข้อกำหนด',
       ],
     },
   ];
