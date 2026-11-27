@@ -417,7 +417,7 @@ export function TuitionGridView() {
     lineType: 'regular' as 'regular' | 'gen_ed_in' | 'gen_ed_out',
     headcountSem2: 0,
     headcountSem1: 50,
-    feePerHead: 15000,
+    feePerHead: 18000,
   });
 
   useEffect(() => {
@@ -483,7 +483,7 @@ export function TuitionGridView() {
             1) ประมาณการรายรับจากค่าธรรมเนียมการศึกษา (2 ภาคเรียน/ปีงบประมาณ)
           </h1>
           <div style={{ fontSize: 13, color: '#475569' }}>
-            ช่องสีเหลือง = ช่องกรอกข้อมูล (นศ. ภาค 2/70, นศ. ภาค 1/71, ค่าธรรมเนียม/คน/ภาค) • ช่องสีเทา = คำนวณอัตโนมัติจาก Calculation Engine
+            ช่องสีเหลือง = ช่องกรอกข้อมูล (นศ.ภาคเรียนที่ 2, นศ.ภาคเรียนที่ 1, ค่าธรรมเนียม/คน/ภาค) • ช่องสีเทา = คำนวณอัตโนมัติจาก Calculation Engine
           </div>
         </div>
         <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
@@ -512,65 +512,83 @@ export function TuitionGridView() {
       {canEditEstimates && (
         <div className="card" style={{ backgroundColor: '#faf5ff' }}>
           <div style={{ fontWeight: 700, marginBottom: 8 }}>➕ เพิ่มแถวหลักสูตร / กระบวนวิชาศึกษาทั่วไป</div>
-          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
-            <select
-              className="select-ctrl"
-              value={newRow.programId}
-              onChange={(e) => setNewRow((p) => ({ ...p, programId: e.target.value }))}
-            >
-              {data.programs.map((prog: any) => (
-                <option key={prog.id} value={prog.id}>
-                  [{prog.report_group}] {prog.name_th}
-                </option>
-              ))}
-            </select>
-            <input
-              type="text"
-              placeholder="รหัสรุ่น (เช่น 71)"
-              className="input-ctrl"
-              style={{ width: 110 }}
-              value={newRow.cohortCode}
-              onChange={(e) => setNewRow((p) => ({ ...p, cohortCode: e.target.value }))}
-            />
-            <select
-              className="select-ctrl"
-              value={newRow.lineType}
-              onChange={(e) =>
-                setNewRow((p) => ({
-                  ...p,
-                  lineType: e.target.value as any,
-                  feePerHead: e.target.value === 'gen_ed_out' ? -540 : e.target.value === 'gen_ed_in' ? 540 : 15000,
-                }))
-              }
-            >
-              <option value="regular">หลักสูตรปกติ (Regular)</option>
-              <option value="gen_ed_in">วิชาศึกษาทั่วไป Pay-in (+)</option>
-              <option value="gen_ed_out">วิชาศึกษานอกคณะ Pay-out (-)</option>
-            </select>
-            <input
-              type="number"
-              placeholder="นศ. ภาค 2"
-              className="input-ctrl num"
-              style={{ width: 100 }}
-              value={newRow.headcountSem2}
-              onChange={(e) => setNewRow((p) => ({ ...p, headcountSem2: Number(e.target.value) }))}
-            />
-            <input
-              type="number"
-              placeholder="นศ. ภาค 1"
-              className="input-ctrl num"
-              style={{ width: 100 }}
-              value={newRow.headcountSem1}
-              onChange={(e) => setNewRow((p) => ({ ...p, headcountSem1: Number(e.target.value) }))}
-            />
-            <input
-              type="number"
-              placeholder="ค่าธรรมเนียม/คน"
-              className="input-ctrl num"
-              style={{ width: 130 }}
-              value={newRow.feePerHead}
-              onChange={(e) => setNewRow((p) => ({ ...p, feePerHead: Number(e.target.value) }))}
-            />
+          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'flex-end' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+              <label style={{ fontSize: 12, fontWeight: 600, color: '#475569' }}>หลักสูตร / กระบวนวิชา</label>
+              <select
+                className="select-ctrl"
+                value={newRow.programId}
+                onChange={(e) => setNewRow((p) => ({ ...p, programId: e.target.value }))}
+              >
+                {data.programs.map((prog: any) => (
+                  <option key={prog.id} value={prog.id}>
+                    [{prog.report_group}] {prog.name_th}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+              <label style={{ fontSize: 12, fontWeight: 600, color: '#475569' }}>รหัสนักศึกษา</label>
+              <input
+                type="text"
+                placeholder="รหัสนักศึกษา (เช่น 71)"
+                className="input-ctrl"
+                style={{ width: 110 }}
+                value={newRow.cohortCode}
+                onChange={(e) => setNewRow((p) => ({ ...p, cohortCode: e.target.value }))}
+              />
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+              <label style={{ fontSize: 12, fontWeight: 600, color: '#475569' }}>ประเภท</label>
+              <select
+                className="select-ctrl"
+                value={newRow.lineType}
+                onChange={(e) =>
+                  setNewRow((p) => ({
+                    ...p,
+                    lineType: e.target.value as any,
+                    feePerHead: e.target.value === 'gen_ed_out' ? -540 : e.target.value === 'gen_ed_in' ? 540 : 18000,
+                  }))
+                }
+              >
+                <option value="regular">หลักสูตรปกติ (Regular)</option>
+                <option value="gen_ed_in">วิชาศึกษาทั่วไป Pay-in (+)</option>
+                <option value="gen_ed_out">วิชาศึกษานอกคณะ Pay-out (-)</option>
+              </select>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+              <label style={{ fontSize: 12, fontWeight: 600, color: '#475569' }}>ภาคเรียนที่ 2</label>
+              <input
+                type="number"
+                placeholder="ภาคเรียนที่ 2"
+                className="input-ctrl num"
+                style={{ width: 100 }}
+                value={newRow.headcountSem2}
+                onChange={(e) => setNewRow((p) => ({ ...p, headcountSem2: Number(e.target.value) }))}
+              />
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+              <label style={{ fontSize: 12, fontWeight: 600, color: '#475569' }}>ภาคเรียนที่ 1</label>
+              <input
+                type="number"
+                placeholder="ภาคเรียนที่ 1"
+                className="input-ctrl num"
+                style={{ width: 100 }}
+                value={newRow.headcountSem1}
+                onChange={(e) => setNewRow((p) => ({ ...p, headcountSem1: Number(e.target.value) }))}
+              />
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+              <label style={{ fontSize: 12, fontWeight: 600, color: '#475569' }}>ค่าธรรมเนียมการศึกษา</label>
+              <input
+                type="number"
+                placeholder="ค่าธรรมเนียมการศึกษา"
+                className="input-ctrl num"
+                style={{ width: 140 }}
+                value={newRow.feePerHead}
+                onChange={(e) => setNewRow((p) => ({ ...p, feePerHead: Number(e.target.value) }))}
+              />
+            </div>
             <button className="btn btn-primary" disabled={mutating} onClick={handleAddLine}>
               ➕ เพิ่มแถว
             </button>
@@ -588,8 +606,8 @@ export function TuitionGridView() {
                 <th>หลักสูตร / กระบวนวิชา</th>
                 <th>รหัส นศ.</th>
                 <th>ระดับ</th>
-                <th className="num">นศ. ภาค 2/70</th>
-                <th className="num">นศ. ภาค 1/71</th>
+                <th className="num">นศ.ภาคเรียนที่ 2</th>
+                <th className="num">นศ.ภาคเรียนที่ 1</th>
                 <th className="num">ค่าธรรมเนียม/คน</th>
                 <th className="num">ห้องสมุด</th>
                 <th className="num">IT</th>
