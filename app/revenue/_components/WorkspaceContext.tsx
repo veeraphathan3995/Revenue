@@ -133,6 +133,7 @@ export function RevenueWorkspaceProvider({ children }: { children: React.ReactNo
   const [compareBasis, setCompareBasis] = useState<'net' | 'gross'>('net');
   const [compareMonthSeq, setCompareMonthSeq] = useState<number>(12);
   const [drillDown, setDrillDown] = useState<DrillDownState | null>(null);
+  const [drillSelectedPrograms, setDrillSelectedPrograms] = useState<string[]>([]);
   const [showNewYearModal, setShowNewYearModal] = useState<boolean>(false);
   const [newYearForm, setNewYearForm] = useState({
     beYear: 2572,
@@ -265,6 +266,23 @@ export function RevenueWorkspaceProvider({ children }: { children: React.ReactNo
     }
   };
 
+  const getDrillAvailablePrograms = (state: DrillDownState | null): string[] => {
+    if (!state || state.columns[0] !== 'หลักสูตร') return [];
+    const mainProgs = (data?.programs || [])
+      .filter((p: any) => p.report_group !== '1.1.7')
+      .map((p: any) => String(p.name_th));
+    const rowProgs = state.rows.map((r) => String(r[0]));
+    return Array.from(new Set([...mainProgs, ...rowProgs]));
+  };
+
+  const handleOpenDrillDown = (state: DrillDownState) => {
+    if (state.columns[0] === 'หลักสูตร') {
+      const progs = getDrillAvailablePrograms(state);
+      setDrillSelectedPrograms(progs);
+    }
+    setDrillDown(state);
+  };
+
   return (
     <WorkspaceContext.Provider
       value={{
@@ -283,7 +301,7 @@ export function RevenueWorkspaceProvider({ children }: { children: React.ReactNo
         setCompareMonthSeq,
         refresh: () => fetchData(selectedVersionId, selectedUserId, compareBasis, compareMonthSeq),
         mutate,
-        openDrillDown: setDrillDown,
+        openDrillDown: handleOpenDrillDown,
         openNewYearModal,
         clearMessages: () => {
           setError(null);
@@ -623,69 +641,188 @@ export function RevenueWorkspaceProvider({ children }: { children: React.ReactNo
       )}
 
       {/* Drill-down Modal (Constitution Rule 9) */}
-      {drillDown && (
-        <div className="modal-backdrop" onClick={() => setDrillDown(null)}>
-          <div className="modal-box" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-header">
-              <div>
-                <h3 style={{ margin: 0, fontSize: 16 }}>🔍 Drill-down: {drillDown.title}</h3>
-                {drillDown.subtitle && (
-                  <div style={{ fontSize: 12.5, color: '#64748b', marginTop: 2 }}>
-                    {drillDown.subtitle}
+      {drillDown && (() => {
+        const isTuitionDrill = drillDown.columns[0] === 'หลักสูตร';
+        const availableProgs = isTuitionDrill ? getDrillAvailablePrograms(drillDown) : [];
+        const displayedRows = isTuitionDrill
+          ? drillDown.rows.filter((r) => drillSelectedPrograms.includes(String(r[0])))
+          : drillDown.rows;
+
+        const sumGross = isTuitionDrill
+          ? displayedRows.reduce((acc, r) => acc + (Number(r[3]) || 0), 0)
+          : 0;
+        const sumNetExact = isTuitionDrill
+          ? displayedRows.reduce((acc, r) => acc + (Number(r[6]) || 0), 0)
+          : 0;
+        const sumNetRounded = Math.trunc(sumNetExact / 1000) * 1000;
+
+        const dynamicSubtitle = isTuitionDrill
+          ? `รวมก่อนหัก ${fmtMoney(sumGross)} บาท | สุทธิหลังปัด ${fmtMoney(sumNetRounded)} บาท`
+          : drillDown.subtitle;
+
+        const dynamicTotalValue = isTuitionDrill
+          ? fmtMoney(sumNetExact)
+          : drillDown.totalValue;
+
+        return (
+          <div className="modal-backdrop" onClick={() => setDrillDown(null)}>
+            <div className="modal-box" onClick={(e) => e.stopPropagation()}>
+              <div className="modal-header">
+                <div>
+                  <h3 style={{ margin: 0, fontSize: 16 }}>🔍 Drill-down: {drillDown.title}</h3>
+                  {dynamicSubtitle && (
+                    <div style={{ fontSize: 12.5, color: '#64748b', marginTop: 2 }}>
+                      {dynamicSubtitle}
+                    </div>
+                  )}
+                </div>
+                <button className="btn btn-secondary" onClick={() => setDrillDown(null)}>
+                  ปิดหน้าต่าง ✕
+                </button>
+              </div>
+              <div className="modal-body">
+                {isTuitionDrill && availableProgs.length > 0 && (
+                  <div
+                    style={{
+                      display: 'flex',
+                      flexWrap: 'wrap',
+                      gap: '8px 12px',
+                      alignItems: 'center',
+                      padding: '10px 12px',
+                      marginBottom: 12,
+                      backgroundColor: '#f8fafc',
+                      border: '1px solid #e2e8f0',
+                      borderRadius: 8,
+                    }}
+                  >
+                    <span style={{ fontWeight: 700, fontSize: 13, color: '#3b1c57' }}>หลักสูตร:</span>
+                    <label
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: 5,
+                        fontSize: 12.5,
+                        fontWeight: 700,
+                        cursor: 'pointer',
+                        color: '#1e293b',
+                        paddingRight: 10,
+                        borderRight: '1px solid #cbd5e1',
+                      }}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={
+                          drillSelectedPrograms.length === availableProgs.length &&
+                          availableProgs.length > 0
+                        }
+                        onChange={(e) => {
+                          if (e.target.checked) {
+                            setDrillSelectedPrograms(availableProgs);
+                          } else {
+                            setDrillSelectedPrograms([]);
+                          }
+                        }}
+                      />
+                      เลือกทั้งหมด
+                    </label>
+                    {availableProgs.map((progName) => {
+                      const checked = drillSelectedPrograms.includes(progName);
+                      const count = drillDown.rows.filter((r) => String(r[0]) === progName).length;
+                      return (
+                        <label
+                          key={progName}
+                          style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: 5,
+                            fontSize: 12.5,
+                            cursor: 'pointer',
+                            padding: '4px 9px',
+                            borderRadius: 6,
+                            backgroundColor: checked ? '#f3e8ff' : '#ffffff',
+                            border: checked ? '1px solid #c084fc' : '1px solid #cbd5e1',
+                            color: checked ? '#3b1c57' : '#64748b',
+                            fontWeight: checked ? 600 : 400,
+                          }}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={checked}
+                            onChange={(e) => {
+                              if (e.target.checked) {
+                                setDrillSelectedPrograms((prev) => [...prev, progName]);
+                              } else {
+                                setDrillSelectedPrograms((prev) => prev.filter((p) => p !== progName));
+                              }
+                            }}
+                          />
+                          <span>{progName}</span>
+                          {count > 0 && (
+                            <span
+                              style={{
+                                fontSize: 11,
+                                backgroundColor: checked ? '#5b2c83' : '#94a3b8',
+                                color: '#fff',
+                                borderRadius: 10,
+                                padding: '0 6px',
+                              }}
+                            >
+                              {count}
+                            </span>
+                          )}
+                        </label>
+                      );
+                    })}
                   </div>
                 )}
-              </div>
-              <button className="btn btn-secondary" onClick={() => setDrillDown(null)}>
-                ปิดหน้าต่าง ✕
-              </button>
-            </div>
-            <div className="modal-body">
-              <div className="table-wrap">
-                <table className="rev-table">
-                  <thead>
-                    <tr>
-                      {drillDown.columns.map((c, idx) => (
-                        <th key={idx} className={idx >= 2 ? 'num' : ''}>
-                          {c}
-                        </th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {drillDown.rows.length === 0 ? (
+
+                <div className="table-wrap">
+                  <table className="rev-table">
+                    <thead>
                       <tr>
-                        <td colSpan={drillDown.columns.length} style={{ textAlign: 'center', padding: 20 }}>
-                          ไม่มีรายการต้นทางในหมวดนี้
-                        </td>
+                        {drillDown.columns.map((c, idx) => (
+                          <th key={idx} className={idx >= 2 ? 'num' : ''}>
+                            {c}
+                          </th>
+                        ))}
                       </tr>
-                    ) : (
-                      drillDown.rows.map((r, rIdx) => (
-                        <tr key={rIdx}>
-                          {r.map((cell, cIdx) => (
-                            <td key={cIdx} className={cIdx >= 2 ? 'num' : ''}>
-                              {typeof cell === 'number' ? fmtMoney(cell) : cell}
-                            </td>
-                          ))}
+                    </thead>
+                    <tbody>
+                      {displayedRows.length === 0 ? (
+                        <tr>
+                          <td colSpan={drillDown.columns.length} style={{ textAlign: 'center', padding: 20 }}>
+                            ไม่มีรายการต้นทางในหมวดนี้
+                          </td>
                         </tr>
-                      ))
+                      ) : (
+                        displayedRows.map((r, rIdx) => (
+                          <tr key={rIdx}>
+                            {r.map((cell, cIdx) => (
+                              <td key={cIdx} className={cIdx >= 2 ? 'num' : ''}>
+                                {typeof cell === 'number' ? fmtMoney(cell) : cell}
+                              </td>
+                            ))}
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                    {drillDown.totalLabel && (
+                      <tfoot>
+                        <tr className="total-row">
+                          <td colSpan={Math.max(1, drillDown.columns.length - 1)}>
+                            {drillDown.totalLabel}
+                          </td>
+                          <td className="num">{dynamicTotalValue}</td>
+                        </tr>
+                      </tfoot>
                     )}
-                  </tbody>
-                  {drillDown.totalLabel && (
-                    <tfoot>
-                      <tr className="total-row">
-                        <td colSpan={Math.max(1, drillDown.columns.length - 1)}>
-                          {drillDown.totalLabel}
-                        </td>
-                        <td className="num">{drillDown.totalValue}</td>
-                      </tr>
-                    </tfoot>
-                  )}
-                </table>
+                  </table>
+                </div>
               </div>
             </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
     </WorkspaceContext.Provider>
   );
 }

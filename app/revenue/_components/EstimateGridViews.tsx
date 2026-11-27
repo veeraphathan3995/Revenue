@@ -410,6 +410,8 @@ export function SettingsView() {
 export function TuitionGridView() {
   const { data, canEditEstimates, mutate, mutating } = useRevenueWorkspace();
   const [filterText, setFilterText] = useState('');
+  const [selectedPrograms, setSelectedPrograms] = useState<string[]>([]);
+  const [programsInit, setProgramsInit] = useState(false);
   const [lastUndo, setLastUndo] = useState<any | null>(null);
   const [newRow, setNewRow] = useState({
     programId: '',
@@ -424,16 +426,47 @@ export function TuitionGridView() {
     if (data?.programs?.[0] && !newRow.programId) {
       setNewRow((prev) => ({ ...prev, programId: data.programs[0].id }));
     }
-  }, [data?.programs, newRow.programId]);
+    if (data?.programs && !programsInit) {
+      const allProgNames = data.programs.map((p: any) => String(p.name_th));
+      setSelectedPrograms(allProgNames);
+      setProgramsInit(true);
+    }
+  }, [data?.programs, newRow.programId, programsInit]);
 
   if (!data) return null;
 
   const { tuition } = data.calc;
+  const availableProgramList = Array.from(
+    new Set([
+      ...(data.programs || [])
+        .filter((p: any) => p.report_group !== '1.1.7')
+        .map((p: any) => String(p.name_th)),
+      ...tuition.lines.map((l: any) => String(l.programName)),
+    ])
+  );
+
   const filteredLines = tuition.lines.filter(
     (l: any) =>
-      l.programName.toLowerCase().includes(filterText.toLowerCase()) ||
-      (l.cohortCode || '').includes(filterText)
+      selectedPrograms.includes(String(l.programName)) &&
+      (l.programName.toLowerCase().includes(filterText.toLowerCase()) ||
+        (l.cohortCode || '').includes(filterText))
   );
+
+  const sumTotals = {
+    headcountSem2: filteredLines.reduce((a: number, l: any) => a + (Number(l.headcountSem2) || 0), 0),
+    headcountSem1: filteredLines.reduce((a: number, l: any) => a + (Number(l.headcountSem1) || 0), 0),
+    libraryFeeTotal: filteredLines.reduce((a: number, l: any) => a + (Number(l.libraryFeeTotal) || 0), 0),
+    itFeeTotal: filteredLines.reduce((a: number, l: any) => a + (Number(l.itFeeTotal) || 0), 0),
+    healthFeeTotal: filteredLines.reduce((a: number, l: any) => a + (Number(l.healthFeeTotal) || 0), 0),
+    registrationFeeTotal: filteredLines.reduce((a: number, l: any) => a + (Number(l.registrationFeeTotal) || 0), 0),
+    developmentFeeTotal: filteredLines.reduce((a: number, l: any) => a + (Number(l.developmentFeeTotal) || 0), 0),
+    deductionBeforeCmu: filteredLines.reduce((a: number, l: any) => a + (Number(l.deductionBeforeCmu) || 0), 0),
+    grossYear: filteredLines.reduce((a: number, l: any) => a + (Number(l.grossYear) || 0), 0),
+    cmuShareYear: filteredLines.reduce((a: number, l: any) => a + (Number(l.cmuShareYear) || 0), 0),
+    libraryRefundYear: filteredLines.reduce((a: number, l: any) => a + (Number(l.libraryRefundYear) || 0), 0),
+    netYearExact: filteredLines.reduce((a: number, l: any) => a + (Number(l.netYear) || 0), 0),
+  };
+  const netYearRounded = Math.trunc(sumTotals.netYearExact / 1000) * 1000;
 
   const handleUpdateLine = async (line: any, field: string, value: number | string) => {
     setLastUndo({
@@ -598,6 +631,101 @@ export function TuitionGridView() {
 
       {/* Main Tuition Grid */}
       <div className="card">
+        {availableProgramList.length > 0 && (
+          <div
+            style={{
+              display: 'flex',
+              flexWrap: 'wrap',
+              gap: '8px 12px',
+              alignItems: 'center',
+              padding: '10px 12px',
+              marginBottom: 12,
+              backgroundColor: '#f8fafc',
+              border: '1px solid #e2e8f0',
+              borderRadius: 8,
+            }}
+          >
+            <span style={{ fontWeight: 700, fontSize: 13, color: '#3b1c57' }}>หลักสูตร:</span>
+            <label
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 5,
+                fontSize: 12.5,
+                fontWeight: 700,
+                cursor: 'pointer',
+                color: '#1e293b',
+                paddingRight: 10,
+                borderRight: '1px solid #cbd5e1',
+              }}
+            >
+              <input
+                type="checkbox"
+                checked={
+                  availableProgramList.every((p) => selectedPrograms.includes(p)) &&
+                  availableProgramList.length > 0
+                }
+                onChange={(e) => {
+                  if (e.target.checked) {
+                    const allProgNames = (data.programs || []).map((p: any) => String(p.name_th));
+                    setSelectedPrograms(Array.from(new Set([...allProgNames, ...availableProgramList])));
+                  } else {
+                    setSelectedPrograms([]);
+                  }
+                }}
+              />
+              เลือกทั้งหมด
+            </label>
+            {availableProgramList.map((progName) => {
+              const checked = selectedPrograms.includes(progName);
+              const count = tuition.lines.filter((l: any) => String(l.programName) === progName).length;
+              return (
+                <label
+                  key={progName}
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 5,
+                    fontSize: 12.5,
+                    cursor: 'pointer',
+                    padding: '4px 9px',
+                    borderRadius: 6,
+                    backgroundColor: checked ? '#f3e8ff' : '#ffffff',
+                    border: checked ? '1px solid #c084fc' : '1px solid #cbd5e1',
+                    color: checked ? '#3b1c57' : '#64748b',
+                    fontWeight: checked ? 600 : 400,
+                  }}
+                >
+                  <input
+                    type="checkbox"
+                    checked={checked}
+                    onChange={(e) => {
+                      if (e.target.checked) {
+                        setSelectedPrograms((prev) => [...prev, progName]);
+                      } else {
+                        setSelectedPrograms((prev) => prev.filter((p) => p !== progName));
+                      }
+                    }}
+                  />
+                  <span>{progName}</span>
+                  {count > 0 && (
+                    <span
+                      style={{
+                        fontSize: 11,
+                        backgroundColor: checked ? '#5b2c83' : '#94a3b8',
+                        color: '#fff',
+                        borderRadius: 10,
+                        padding: '0 6px',
+                      }}
+                    >
+                      {count}
+                    </span>
+                  )}
+                </label>
+              );
+            })}
+          </div>
+        )}
         <div className="table-wrap">
           <table className="rev-table">
             <thead>
@@ -706,21 +834,21 @@ export function TuitionGridView() {
             <tfoot>
               <tr className="total-row">
                 <td colSpan={4}>รวมทั้งสิ้น (ก่อนปัดหลักพัน)</td>
-                <td className="num">{fmtMoney(tuition.totals.headcountSem2)}</td>
-                <td className="num">{fmtMoney(tuition.totals.headcountSem1)}</td>
+                <td className="num">{fmtMoney(sumTotals.headcountSem2)}</td>
+                <td className="num">{fmtMoney(sumTotals.headcountSem1)}</td>
                 <td className="num">-</td>
-                <td className="num">{fmtMoney(tuition.totals.libraryFeeTotal)}</td>
-                <td className="num">{fmtMoney(tuition.totals.itFeeTotal)}</td>
-                <td className="num">{fmtMoney(tuition.totals.healthFeeTotal)}</td>
-                <td className="num">{fmtMoney(tuition.totals.registrationFeeTotal)}</td>
-                <td className="num">{fmtMoney(tuition.totals.developmentFeeTotal)}</td>
-                <td className="num">{fmtMoney(tuition.totals.deductionBeforeCmu)}</td>
-                <td className="num">{fmtMoney(tuition.totals.grossYear)}</td>
-                <td className="num">{fmtMoney(tuition.totals.cmuShareYear)}</td>
+                <td className="num">{fmtMoney(sumTotals.libraryFeeTotal)}</td>
+                <td className="num">{fmtMoney(sumTotals.itFeeTotal)}</td>
+                <td className="num">{fmtMoney(sumTotals.healthFeeTotal)}</td>
+                <td className="num">{fmtMoney(sumTotals.registrationFeeTotal)}</td>
+                <td className="num">{fmtMoney(sumTotals.developmentFeeTotal)}</td>
+                <td className="num">{fmtMoney(sumTotals.deductionBeforeCmu)}</td>
+                <td className="num">{fmtMoney(sumTotals.grossYear)}</td>
+                <td className="num">{fmtMoney(sumTotals.cmuShareYear)}</td>
                 <td className="num" style={{ color: '#15803d' }}>
-                  {fmtMoney(tuition.totals.libraryRefundYear)}
+                  {fmtMoney(sumTotals.libraryRefundYear)}
                 </td>
-                <td className="num">{fmtMoney(tuition.totals.netYearExact)}</td>
+                <td className="num">{fmtMoney(sumTotals.netYearExact)}</td>
                 {canEditEstimates && <td />}
               </tr>
               <tr className="total-row" style={{ backgroundColor: '#dcfce7' }}>
@@ -728,7 +856,7 @@ export function TuitionGridView() {
                   รายรับสุทธิค่าธรรมเนียมการศึกษาทั้งปี (ปัดลงหลักพันตามเกณฑ์ TRUNC -3 เพื่อนำไปจัดสรรงบ)
                 </td>
                 <td className="num" style={{ color: '#15803d', fontSize: 15 }}>
-                  {fmtMoney(tuition.totals.netYearRounded)}
+                  {fmtMoney(netYearRounded)}
                 </td>
                 {canEditEstimates && <td />}
               </tr>
