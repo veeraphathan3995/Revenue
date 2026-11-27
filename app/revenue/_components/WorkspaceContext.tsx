@@ -134,6 +134,7 @@ export function RevenueWorkspaceProvider({ children }: { children: React.ReactNo
   const [compareMonthSeq, setCompareMonthSeq] = useState<number>(12);
   const [drillDown, setDrillDown] = useState<DrillDownState | null>(null);
   const [drillSelectedPrograms, setDrillSelectedPrograms] = useState<string[]>([]);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState<boolean>(false);
   const [showNewYearModal, setShowNewYearModal] = useState<boolean>(false);
   const [newYearForm, setNewYearForm] = useState({
     beYear: 2572,
@@ -316,37 +317,48 @@ export function RevenueWorkspaceProvider({ children }: { children: React.ReactNo
     >
       <div className="rev-shell">
         {/* Sidebar */}
-        <aside className="rev-sidebar">
-          <div className="rev-brand">
-            <div className="rev-brand-title">ระบบประมาณการรายรับเงินรายได้</div>
-            <div className="rev-brand-sub">คณะรัฐศาสตร์และรัฐประศาสนศาสตร์ มช.</div>
-          </div>
-          <nav className="rev-nav">
-            {NAV_GROUPS.map((g) => (
-              <div key={g.group}>
-                <div className="rev-nav-group">{g.group}</div>
-                {g.items.map((item) => {
-                  const isActive = pathname === item.href;
-                  return (
-                    <Link
-                      key={item.href}
-                      href={item.href}
-                      className={`rev-nav-link ${isActive ? 'active' : ''}`}
-                    >
-                      {item.label}
-                    </Link>
-                  );
-                })}
-              </div>
-            ))}
-          </nav>
-        </aside>
+        {!sidebarCollapsed && (
+          <aside className="rev-sidebar">
+            <div className="rev-brand">
+              <div className="rev-brand-title">ระบบประมาณการรายรับเงินรายได้</div>
+              <div className="rev-brand-sub">คณะรัฐศาสตร์และรัฐประศาสนศาสตร์ มช.</div>
+            </div>
+            <nav className="rev-nav">
+              {NAV_GROUPS.map((g) => (
+                <div key={g.group}>
+                  <div className="rev-nav-group">{g.group}</div>
+                  {g.items.map((item) => {
+                    const isActive = pathname === item.href;
+                    return (
+                      <Link
+                        key={item.href}
+                        href={item.href}
+                        className={`rev-nav-link ${isActive ? 'active' : ''}`}
+                      >
+                        {item.label}
+                      </Link>
+                    );
+                  })}
+                </div>
+              ))}
+            </nav>
+          </aside>
+        )}
 
         {/* Main Panel */}
         <div className="rev-main">
           {/* Sticky Topbar with Fiscal Year, Version, New Fiscal Year Button, Role Switcher, and Export */}
           <header className="rev-topbar">
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+              <button
+                type="button"
+                className="btn btn-secondary"
+                style={{ padding: '4px 9px', fontSize: 13 }}
+                onClick={() => setSidebarCollapsed((c) => !c)}
+                title={sidebarCollapsed ? 'แสดงเมนูด้านซ้าย' : 'ซ่อนเมนูด้านซ้ายเพื่อขยายเต็มหน้าจอ'}
+              >
+                {sidebarCollapsed ? '☰ แสดงเมนู' : '☰'}
+              </button>
               <label style={{ fontWeight: 700, fontSize: 13 }}>ปีงบประมาณ:</label>
               <select
                 className="select-ctrl"

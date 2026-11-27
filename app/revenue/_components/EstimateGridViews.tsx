@@ -754,10 +754,10 @@ export function TuitionGridView() {
               {filteredLines.map((l: any, idx: number) => (
                 <tr key={l.id}>
                   <td>{idx + 1}</td>
-                  <td style={{ fontWeight: 600 }}>{l.programName}</td>
-                  <td style={{ textAlign: 'center', fontWeight: 700 }}>{l.cohortCode || '-'}</td>
-                  <td>{l.level === 'master' ? 'ปริญญาโท' : 'ปริญญาตรี'}</td>
-                  <td className="num" style={{ width: 95 }}>
+                  <td style={{ fontWeight: 600, minWidth: 160 }}>{l.programName}</td>
+                  <td style={{ textAlign: 'center', fontWeight: 700, whiteSpace: 'nowrap' }}>{l.cohortCode || '-'}</td>
+                  <td style={{ whiteSpace: 'nowrap' }}>{l.level === 'master' ? 'ปริญญาโท' : 'ปริญญาตรี'}</td>
+                  <td className="num" style={{ width: 72 }}>
                     <input
                       type="number"
                       min="0"
@@ -770,7 +770,7 @@ export function TuitionGridView() {
                       }}
                     />
                   </td>
-                  <td className="num" style={{ width: 95 }}>
+                  <td className="num" style={{ width: 72 }}>
                     <input
                       type="number"
                       min="0"
@@ -783,7 +783,7 @@ export function TuitionGridView() {
                       }}
                     />
                   </td>
-                  <td className="num" style={{ width: 115 }}>
+                  <td className="num" style={{ width: 88 }}>
                     <input
                       type="number"
                       className="excel-input num"
