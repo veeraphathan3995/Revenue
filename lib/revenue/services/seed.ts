@@ -725,3 +725,381 @@ export async function seedFromExcel2571(
     historicalUsageCount,
   };
 }
+
+export async function clearAllRevenueData(db: PGlite): Promise<void> {
+  await db.exec(`
+    TRUNCATE TABLE
+      public.tuition_lines,
+      public.service_projects,
+      public.rental_items,
+      public.research_projects,
+      public.other_income_lines,
+      public.revenue_actuals,
+      public.expenditure_actuals,
+      public.carryover,
+      public.allocation_pcts,
+      public.historical_usage,
+      public.version_snapshots,
+      public.audit_logs,
+      public.parameters,
+      public.month_distribution,
+      public.rounding_rules,
+      public.fee_schedules,
+      public.estimate_versions,
+      public.fiscal_years
+    CASCADE;
+  `);
+}
+
+export async function seedCleanBaseline(db: PGlite, beYear = 2571): Promise<SeedSummary> {
+  // 1. Wipe all data cleanly
+  await clearAllRevenueData(db);
+
+  // Set session user to SUPER_ADMIN for audit trail
+  await db.exec(`SELECT set_config('request.jwt.claim.sub', '${SEED_USERS.SUPER_ADMIN.id}', false);`);
+
+  // 2. Seed 6 role profiles
+  for (const u of Object.values(SEED_USERS)) {
+    await db.query(
+      `INSERT INTO public.profiles (id, email, full_name, role)
+       VALUES ($1, $2, $3, $4)
+       ON CONFLICT (id) DO UPDATE SET email = EXCLUDED.email, full_name = EXCLUDED.full_name, role = EXCLUDED.role`,
+      [u.id, u.email, u.full_name, u.role]
+    );
+  }
+
+  // 3. Create clean fiscal year and initial draft version
+  const ceStartYear = beYear - 543 - 1;
+  const ceEndYear = beYear - 543;
+
+  const fyRes = await db.query<{ id: string }>(
+    `INSERT INTO public.fiscal_years (be_year, start_date, end_date, created_by)
+     VALUES ($1, $2, $3, $4)
+     RETURNING id`,
+    [beYear, `${ceStartYear}-10-01`, `${ceEndYear}-09-30`, SEED_USERS.SUPER_ADMIN.id]
+  );
+  const fiscalYearId = fyRes.rows[0].id;
+
+  const verRes = await db.query<{ id: string }>(
+    `INSERT INTO public.estimate_versions (fiscal_year_id, version_no, label, status, created_by)
+     VALUES ($1, 1, 'ประมาณการรายรับ ครั้งที่ 1 (ต้นปีงบประมาณ)', 'draft', $2)
+     RETURNING id`,
+    [fiscalYearId, SEED_USERS.PLANNING_OFFICER.id]
+  );
+  const versionId = verRes.rows[0].id;
+
+  // 4. Seed baseline parameters
+  const paramsToInsert: Array<{
+    key: string;
+    value_numeric: number | null;
+    value_text: string | null;
+    note: string;
+  }> = [
+    {
+      key: 'ORG_NAME',
+      value_numeric: null,
+      value_text: 'คณะรัฐศาสตร์และรัฐประศาสนศาสตร์ มหาวิทยาลัยเชียงใหม่',
+      note: 'ชื่อหน่วยงาน',
+    },
+    {
+      key: 'SERVICE_DEDUCT_1',
+      value_numeric: 0.10,
+      value_text: null,
+      note: 'บริการวิชาการ – หักที่ 1 (ส่วนกลาง) % ของรายรับ',
+    },
+    {
+      key: 'SERVICE_DEDUCT_2',
+      value_numeric: 0.40,
+      value_text: null,
+      note: 'บริการวิชาการ – หักที่ 2 (บริหารจัดการ) %',
+    },
+    {
+      key: 'SERVICE_DEDUCT_2_BASE',
+      value_numeric: null,
+      value_text: 'after_d1',
+      note: 'ฐานการคำนวณหักบริหารจัดการ 40%: after_d1 หรือ gross',
+    },
+    {
+      key: 'OH_DEFAULT_RATE',
+      value_numeric: 0.00,
+      value_text: null,
+      note: 'งานวิจัย – อัตรา Overhead เริ่มต้น',
+    },
+    {
+      key: 'OH_CENTRAL_PCT',
+      value_numeric: 0.00,
+      value_text: null,
+      note: 'งานวิจัย – อัตราหักส่งส่วนกลางจาก Overhead',
+    },
+    {
+      key: 'RENT_DEDUCT',
+      value_numeric: 0.10,
+      value_text: null,
+      note: 'ค่าเช่าราชพัสดุ – อัตราหักส่งส่วนกลาง',
+    },
+    {
+      key: 'CMU_PCT',
+      value_numeric: 0.10,
+      value_text: null,
+      note: 'ค่าธรรมเนียมการศึกษา – หักให้ มช. % ของรายรับสุทธิหลังหักค่าใช้จ่าย',
+    },
+    {
+      key: 'GEN_ED_RATE_IN',
+      value_numeric: 540,
+      value_text: null,
+      note: 'อัตราค่าธรรมเนียมกระบวนวิชาศึกษาทั่วไป Pay-in ต่อหัว (บาท)',
+    },
+    {
+      key: 'GEN_ED_RATE_OUT_DEFAULT',
+      value_numeric: -540,
+      value_text: null,
+      note: 'อัตราค่าธรรมเนียมกระบวนวิชาศึกษานอกคณะ Pay-out ต่อหัว มาตรฐาน (บาท)',
+    },
+    {
+      key: 'GEN_ED_RATE_OUT_STB',
+      value_numeric: -500,
+      value_text: null,
+      note: 'อัตราค่าธรรมเนียมกระบวนวิชาศึกษานอกคณะ Pay-out หลักสูตร STB ต่อหัว (บาท)',
+    },
+    {
+      key: 'SCHOLARSHIP_PCT',
+      value_numeric: 0.20,
+      value_text: null,
+      note: 'สัดส่วนทุนการศึกษาและพัฒนา นศ.',
+    },
+    {
+      key: 'STATUS_HIT',
+      value_numeric: 1.0,
+      value_text: null,
+      note: 'เกณฑ์สถานะเทียบรับจริง ถึงเป้า (>= 100%)',
+    },
+    {
+      key: 'STATUS_NEAR',
+      value_numeric: 0.90,
+      value_text: null,
+      note: 'เกณฑ์สถานะเทียบรับจริง ใกล้เคียง (>= 90%)',
+    },
+  ];
+
+  for (const p of paramsToInsert) {
+    await db.query(
+      `INSERT INTO public.parameters (version_id, key, value_numeric, value_text, effective_be_year, note)
+       VALUES ($1, $2, $3, $4, $5, $6)`,
+      [versionId, p.key, p.value_numeric, p.value_text, beYear, p.note]
+    );
+  }
+
+  // 5. Month distributions (12 months x 2 semesters)
+  const sem2Pcts: Record<number, number> = { 7: 0.70, 8: 0.30 };
+  const sem1Pcts: Record<number, number> = { 11: 0.70, 12: 0.30 };
+
+  let monthDistributionCount = 0;
+  for (let m = 1; m <= 12; m++) {
+    await db.query(
+      `INSERT INTO public.month_distribution (version_id, month_seq, semester, pct)
+       VALUES ($1, $2, 2, $3)`,
+      [versionId, m, sem2Pcts[m] || 0]
+    );
+    await db.query(
+      `INSERT INTO public.month_distribution (version_id, month_seq, semester, pct)
+       VALUES ($1, $2, 1, $3)`,
+      [versionId, m, sem1Pcts[m] || 0]
+    );
+    monthDistributionCount += 2;
+  }
+
+  // 6. Rounding rules
+  const roundingRules = [
+    { scope: 'TUITION_YEAR_TOTAL', mode: 'trunc', digits: -3 },
+    { scope: 'ACAD_SERVICE_YEAR_TOTAL', mode: 'floor', digits: -3 },
+    { scope: 'RESEARCH_OH_LINE', mode: 'round', digits: -3 },
+    { scope: 'RESEARCH_OH_YEAR_TOTAL', mode: 'trunc', digits: -3 },
+    { scope: 'RENT_YEAR_TOTAL', mode: 'floor', digits: -3 },
+    { scope: 'ALLOCATION_BASE_TUITION', mode: 'trunc', digits: -3 },
+    { scope: 'ALLOCATION_BASE_OTHER', mode: 'trunc', digits: -2 },
+    { scope: 'ALLOCATION_PLAN_ITEM', mode: 'round', digits: -2 },
+    { scope: 'ALLOCATION_EXPENSE_ITEM', mode: 'none', digits: 0 },
+    { scope: 'ALLOCATION_STRATEGIC_ITEM', mode: 'none', digits: 0 },
+  ];
+  for (const r of roundingRules) {
+    await db.query(
+      `INSERT INTO public.rounding_rules (version_id, scope, mode, digits)
+       VALUES ($1, $2, $3, $4)`,
+      [versionId, r.scope, r.mode, r.digits]
+    );
+  }
+
+  // 7. Fee schedules
+  const feeSchedules = [
+    {
+      level: 'bachelor',
+      library_fee: 700,
+      it_fee: 500,
+      health_fee: 200,
+      registration_fee: 1000,
+      total_deduction_per_head: 4500,
+      library_refund_pct: 0.6,
+      effective_be_year: beYear,
+    },
+    {
+      level: 'master',
+      library_fee: 1000,
+      it_fee: 1000,
+      health_fee: 200,
+      registration_fee: 1000,
+      total_deduction_per_head: 5000,
+      library_refund_pct: 0.6,
+      effective_be_year: beYear,
+    },
+  ];
+  for (const fsItem of feeSchedules) {
+    await db.query(
+      `INSERT INTO public.fee_schedules (
+         level, library_fee, it_fee, health_fee, registration_fee,
+         total_deduction_per_head, library_refund_pct, effective_be_year
+       ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+      [
+        fsItem.level,
+        fsItem.library_fee,
+        fsItem.it_fee,
+        fsItem.health_fee,
+        fsItem.registration_fee,
+        fsItem.total_deduction_per_head,
+        fsItem.library_refund_pct,
+        fsItem.effective_be_year,
+      ]
+    );
+  }
+
+  // 8. Academic programs
+  const programCatalog = [
+    { code: 'GOV', name_th: 'หลักสูตรการเมืองการปกครอง (GOV)', level: 'bachelor', report_group: '1.1.1' },
+    { code: 'PA', name_th: 'หลักสูตรรัฐประศาสนศาสตร์ (PA)', level: 'bachelor', report_group: '1.1.2' },
+    { code: 'IA', name_th: 'หลักสูตรการระหว่างประเทศ (IA)', level: 'bachelor', report_group: '1.1.3' },
+    { code: 'STB', name_th: 'หลักสูตรศาสตร์แห่งความยั่งยืน (STB)', level: 'bachelor', report_group: '1.1.4' },
+    { code: 'MGOV_REG', name_th: 'หลักสูตรรัฐศาสตรมหาบัณทิต ภาคปกติ (MGOV)', level: 'master', report_group: '1.1.5' },
+    { code: 'MGOV_SPEC', name_th: 'หลักสูตรรัฐศาสตรมหาบัณทิต ภาคพิเศษ (MGOV)', level: 'master', report_group: '1.1.5' },
+    { code: 'MPA_REG', name_th: 'หลักสูตรรัฐประศาสนศาสตรมหาบัณฑิต (ภาคปกติ) (MPA)', level: 'master', report_group: '1.1.6' },
+    { code: 'MPA_SPEC', name_th: 'หลักสูตรรัฐประศาสนศาสตรมหาบัณฑิต (ภาคพิเศษ) (MPA)', level: 'master', report_group: '1.1.6' },
+    { code: 'GEN_ED_140104', name_th: 'กระบวนวิชาศึกษาทั่วไป 140104', level: 'bachelor', report_group: '1.1.7' },
+    { code: 'GEN_ED_GOV_IN', name_th: 'กระบวนวิชาศึกษาทั่วไป (GOV) Pay-in', level: 'bachelor', report_group: '1.1.7' },
+    { code: 'GEN_ED_GOV_OUT', name_th: 'กระบวนวิชาศึกษานอกคณะ (GOV) Pay-out', level: 'bachelor', report_group: '1.1.7' },
+    { code: 'GEN_ED_PA_IN', name_th: 'กระบวนวิชาศึกษาทั่วไป (PA) Pay-in', level: 'bachelor', report_group: '1.1.7' },
+    { code: 'GEN_ED_PA_OUT', name_th: 'กระบวนวิชาศึกษานอกคณะ (PA) Pay-out', level: 'bachelor', report_group: '1.1.7' },
+    { code: 'GEN_ED_IA_IN', name_th: 'กระบวนวิชาศึกษาทั่วไป (IA) Pay-in', level: 'bachelor', report_group: '1.1.7' },
+    { code: 'GEN_ED_IA_OUT', name_th: 'กระบวนวิชาศึกษานอกคณะ (IA) Pay-out', level: 'bachelor', report_group: '1.1.7' },
+    { code: 'GEN_ED_STB_OUT', name_th: 'กระบวนวิชาศึกษานอกคณะ (STB) Pay-out', level: 'bachelor', report_group: '1.1.7' },
+  ];
+  for (const prog of programCatalog) {
+    await db.query(
+      `INSERT INTO public.programs (code, name_th, level, report_group)
+       VALUES ($1, $2, $3, $4)
+       ON CONFLICT (code) DO UPDATE SET name_th = EXCLUDED.name_th, level = EXCLUDED.level, report_group = EXCLUDED.report_group`,
+      [prog.code, prog.name_th, prog.level, prog.report_group]
+    );
+  }
+
+  // 9. Allocation dimensions & items
+  const dimensionsConfig = [
+    {
+      code: 'plan',
+      name_th: 'มิติแผนงาน',
+      items: [
+        'แผนงานการเรียนการสอน',
+        'แผนงานวิจัย',
+        'แผนงานบริการวิชาการแก่สังคม',
+        'แผนงานการศาสนา ศิลปะ วัฒนธรรมฯ',
+        'แผนงานสนับสนุนวิชาการ',
+        'แผนงานบริหารมหาวิทยาลัย',
+      ],
+    },
+    {
+      code: 'expense_category',
+      name_th: 'มิติหมวดรายจ่าย',
+      items: [
+        'งบบุคลากร',
+        'งบดำเนินงาน',
+        'งบเงินอุดหนุน',
+        'งบลงทุน',
+        'งบรายจ่ายอื่น',
+      ],
+    },
+    {
+      code: 'strategic',
+      name_th: 'มิติหมวดงบเชิงยุทธศาสตร์',
+      items: [
+        'ยุทธศาสตร์ที่ 1 นวัตกรรมการศึกษาเพื่อพัฒนาบุคลากร',
+        'ยุทธศาสตร์ที่ 2 งานวิจัยและนวัตกรรมเพื่อสังคม',
+        'ยุทธศาสตร์ที่ 3 การบริหารจัดการองค์กรสู่ความยั่งยืน',
+      ],
+    },
+  ];
+
+  let allocationItemsCount = 0;
+  for (const dim of dimensionsConfig) {
+    const dimRes = await db.query<{ id: string }>(
+      `INSERT INTO public.allocation_dimensions (code, name_th)
+       VALUES ($1, $2)
+       ON CONFLICT (code) DO UPDATE SET name_th = EXCLUDED.name_th
+       RETURNING id`,
+      [dim.code, dim.name_th]
+    );
+    const dimId = dimRes.rows[0].id;
+
+    for (let i = 0; i < dim.items.length; i++) {
+      await db.query(
+        `INSERT INTO public.allocation_items (dimension_id, name, sort_order)
+         VALUES ($1, $2, $3)
+         ON CONFLICT (dimension_id, name) DO UPDATE SET sort_order = EXCLUDED.sort_order`,
+        [dimId, dim.items[i], i + 1]
+      );
+      allocationItemsCount++;
+    }
+  }
+
+  // Baseline allocation percentages
+  const itemsRes = await db.query<{ id: string; dimension_code: string; sort_order: number }>(
+    `SELECT ai.id, ad.code AS dimension_code, ai.sort_order
+     FROM public.allocation_items ai
+     JOIN public.allocation_dimensions ad ON ad.id = ai.dimension_id
+     ORDER BY ad.code, ai.sort_order`
+  );
+
+  const revTypes = ['TUITION', 'ACAD_SERVICE', 'RESEARCH_OH', 'RENT', 'CARRYOVER'] as const;
+  let allocationPctsCount = 0;
+
+  for (const dimCode of ['plan', 'expense_category', 'strategic']) {
+    const dimItems = itemsRes.rows.filter((it) => it.dimension_code === dimCode);
+    if (dimItems.length > 0) {
+      for (const rt of revTypes) {
+        for (let i = 0; i < dimItems.length; i++) {
+          const pct = i === 0 ? 1.0 : 0.0;
+          await db.query(
+            `INSERT INTO public.allocation_pcts (version_id, item_id, revenue_type, pct)
+             VALUES ($1, $2, $3, $4)
+             ON CONFLICT (version_id, item_id, revenue_type) DO UPDATE SET pct = EXCLUDED.pct`,
+            [versionId, dimItems[i].id, rt, pct]
+          );
+          allocationPctsCount++;
+        }
+      }
+    }
+  }
+
+  return {
+    fiscalYearBe: beYear,
+    versionId,
+    parametersCount: paramsToInsert.length,
+    monthDistributionCount,
+    feeSchedulesCount: feeSchedules.length,
+    programsCount: programCatalog.length,
+    tuitionLinesCount: 0,
+    serviceProjectsCount: 0,
+    researchProjectsCount: 0,
+    rentalItemsCount: 0,
+    carryoverAmount: 0,
+    allocationItemsCount,
+    allocationPctsCount,
+    historicalUsageCount: 0,
+  };
+}

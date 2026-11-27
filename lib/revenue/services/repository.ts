@@ -45,7 +45,7 @@ import {
   VersionTransitionSchema,
 } from '../schemas';
 import { createOrOpenDb, execAsUser, runMigrations } from './db';
-import { SEED_USERS, seedFromExcel2571 } from './seed';
+import { SEED_USERS, seedFromExcel2571, seedCleanBaseline, clearAllRevenueData } from './seed';
 
 declare global {
   // eslint-disable-next-line no-var
@@ -61,7 +61,7 @@ export async function getSingletonDb(): Promise<PGlite> {
         `SELECT COUNT(*)::int AS cnt FROM public.fiscal_years WHERE deleted_at IS NULL`
       );
       if ((countRes.rows[0]?.cnt ?? 0) === 0) {
-        await seedFromExcel2571(db);
+        await seedCleanBaseline(db);
       }
       return db;
     })();
@@ -1721,6 +1721,35 @@ export async function mutateRevenueData(
         }
 
         return { ok: true, data: { newVersionId, beYear: targetBeYear } };
+      }
+
+      case 'clear_database': {
+        const userRes = await db.query<{ role: string }>(
+          `SELECT role FROM public.profiles WHERE id = $1 AND deleted_at IS NULL`,
+          [userId]
+        );
+        const role = userRes.rows[0]?.role;
+        if (role !== 'SUPER_ADMIN' && role !== 'PLANNING_OFFICER') {
+          throw new Error('เฉพาะผู้ดูแลระบบ (SUPER_ADMIN) หรือเจ้าหน้าที่แผนฯ เท่านั้นที่สามารถเคลียร์ฐานข้อมูลได้');
+        }
+
+        const summary = await seedCleanBaseline(db, payload?.beYear || 2571);
+        return { ok: true, data: { newVersionId: summary.versionId, beYear: summary.fiscalYearBe, summary } };
+      }
+
+      case 'load_sample_data': {
+        const userRes = await db.query<{ role: string }>(
+          `SELECT role FROM public.profiles WHERE id = $1 AND deleted_at IS NULL`,
+          [userId]
+        );
+        const role = userRes.rows[0]?.role;
+        if (role !== 'SUPER_ADMIN' && role !== 'PLANNING_OFFICER') {
+          throw new Error('เฉพาะผู้ดูแลระบบ (SUPER_ADMIN) หรือเจ้าหน้าที่แผนฯ เท่านั้นที่สามารถโหลดข้อมูลตัวอย่างได้');
+        }
+
+        await clearAllRevenueData(db);
+        const summary = await seedFromExcel2571(db);
+        return { ok: true, data: { newVersionId: summary.versionId, beYear: summary.fiscalYearBe, summary } };
       }
 
       default:

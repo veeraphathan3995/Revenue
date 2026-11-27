@@ -1,13 +1,19 @@
 import fs from 'fs';
 import path from 'path';
-import { describe, expect, it } from 'vitest';
+import { beforeAll, describe, expect, it } from 'vitest';
 import {
   getRevenueWorkspaceData,
+  getSingletonDb,
   mutateRevenueData,
 } from '../lib/revenue/services/repository';
-import { SEED_USERS } from '../lib/revenue/services/seed';
+import { SEED_USERS, seedFromExcel2571 } from '../lib/revenue/services/seed';
 
 describe('Phases 3–8 — Full Repository, Dynamic Parameters, Workflow & Security QA', () => {
+  beforeAll(async () => {
+    const db = await getSingletonDb();
+    await seedFromExcel2571(db);
+  });
+
   it('1. Loads seeded 2571 workspace from DB and computes exact Golden Values through Pure Calc Engine', async () => {
     const ws = await getRevenueWorkspaceData();
 

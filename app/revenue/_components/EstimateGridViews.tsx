@@ -358,6 +358,48 @@ export function SettingsView() {
           </table>
         </div>
       </div>
+
+      {/* 5. Database Maintenance & Clear Section */}
+      <div className="card" style={{ border: '1px solid #fed7aa', backgroundColor: '#fffaf5' }}>
+        <div className="card-header">
+          <h2 className="card-title" style={{ color: '#9a3412' }}>
+            5. การจัดการและเคลียร์ฐานข้อมูล (Database Management)
+          </h2>
+        </div>
+        <div style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+          <p style={{ margin: 0, fontSize: '14px', color: '#7c2d12' }}>
+            คุณสามารถเคลียร์ข้อมูลรายการประมาณการและรายรับจริงทั้งหมดในฐานข้อมูลเพื่อเริ่มต้นปีงบประมาณว่างเปล่า (ยอด 0.00 บาท)
+            หรือโหลดข้อมูลตัวอย่างจากไฟล์ Excel ต้นแบบ 2571 เพื่อทดสอบระบบได้
+          </p>
+          <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
+            <button
+              type="button"
+              className="btn"
+              style={{ backgroundColor: '#dc2626', color: '#fff', border: 'none' }}
+              disabled={mutating || !canEditParameters}
+              onClick={async () => {
+                if (window.confirm('⚠️ คำเตือน: คุณต้องการล้างข้อมูลในฐานข้อมูลทั้งหมดใช่หรือไม่?\n\n- รายการประมาณการทุกประเภท (ค่าธรรมเนียม, บริการวิชาการ, ค่าเช่า, วิจัย, รายได้อื่น, เงินเหลือจ่าย) จะถูกเคลียร์ทั้งหมด\n- ข้อมูลจริง (Actuals) และ Audit Log จะถูกล้าง\n- ระบบจะตั้งต้นปีงบประมาณ 2571 ฉบับร่างที่มียอดเป็น 0.00 บาท')) {
+                  await mutate('clear_database', { beYear: data.activeVersion?.be_year || 2571 }, 'เคลียร์ข้อมูลในฐานข้อมูลทั้งหมดเรียบร้อยแล้ว ยอดรวมทุกประเภทเป็น 0.00 บาท');
+                }
+              }}
+            >
+              🗑️ เคลียร์ข้อมูลในฐานข้อมูลทั้งหมด (Reset to 0.00 บาท)
+            </button>
+            <button
+              type="button"
+              className="btn btn-outline"
+              disabled={mutating || !canEditParameters}
+              onClick={async () => {
+                if (window.confirm('คุณต้องการโหลดข้อมูลตัวอย่างจาก Excel 2571 ใช่หรือไม่? ข้อมูลปัจจุบันจะถูกแทนที่ด้วยชุดข้อมูลต้นแบบ')) {
+                  await mutate('load_sample_data', {}, 'โหลดข้อมูลตัวอย่างจาก Excel 2571 สำเร็จ');
+                }
+              }}
+            >
+              📥 โหลดข้อมูลตัวอย่างต้นแบบ (Excel 2571)
+            </button>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
